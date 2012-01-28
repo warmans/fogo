@@ -28,8 +28,9 @@ class Container {
 
 abstract class ComponentAbstract {
     
-    private $_container;
-    private $_className;
+    protected $_container;
+    protected $_className;
+    protected $_instance;
     
     abstract public function addConstructor($val);   
     abstract public function addSharedConstructor($componentName);   
@@ -56,7 +57,11 @@ class NamedComponent extends ComponentAbstract {
     }      
     
     public function getInstance(){		
+        if($this->_instance){
+            return $this->_instance;
+        }
 		$class = new ReflectionClass($this->_className);
-		return  $class->newInstanceArgs($this->_constructors);
+		$this->_instance = $class->newInstanceArgs($this->_constructors);
+        return $this->_instance;
     }
 }
