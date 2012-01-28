@@ -1,6 +1,6 @@
 <?php
 /**
- * "Fogo"
+ * Forked from "Fogo" but completely changed by warmans.
  * 
  * A prototype for a micro Dependency Injection (DI) Container.
  * 
@@ -10,71 +10,53 @@
  */
 
 class Container {
-	public $interfaces = array();
-	public $instances = array();
-	public $components = array();
+	private $_components = array();
 	
-	public function add($name) {
-		$dependencies = array();
-		$constructor = null;
-		
-		try {
-			$constructor = new ReflectionMethod($name, '__construct');
-		} catch(ReflectionException $e) {
-			// This is fine, simply means we will not be injecting anything.
-		}
-		
-		if($constructor) {
-			foreach($constructor->getParameters() as $parameter) {
-				try {
-					$dependencies[] = $parameter->getClass()->name;
-				} catch(ReflectionException $e) {
-					throw new ClassResolutionException("Could not resolve all dependencies for {$name}");
-				}
-			}
-		}
-		
-		$this->components[$name] = $dependencies;
+	public function addComponent($className) {
+		$this->_components[$className] = new NamedComponent($this, $className);
+        return $this->_components[$className];
 	}
-	
-	public function addImplementation($interface, $implementation) {
-		$class = new ReflectionClass($implementation);
-		
-		if(!$class->implementsInterface($interface))
-			throw new IncorrectImplementationException("{$implementation} does not implement {$interface}");
-		
-		$this->add($implementation);
-		$this->interfaces[$interface] = $implementation;
-	}
-	
-	public function getInstance($name) {
-		if(!isset($this->instances[$name]))
-			$this->resolve($name);
-		return $this->instances[$name];
-	}
-	
-	private function resolve($name) {
-		$args = array();
-		$dependencies = $this->components[$name];
-		
-		foreach($dependencies as $dependency) {
-			if(array_key_exists($dependency, $this->interfaces))
-				$dependency = $this->interfaces[$dependency];
-			
-			if(in_array($name, $this->components[$dependency]))
-				throw new CircularDependencyException("Circular dependency: {$name} <> {$dependency}");
-			$args[] =  $this->getInstance($dependency);
-		}
-		
-		$class = new ReflectionClass($name);
-		$instance = $class->newInstanceArgs($args);
-		
-		$this->instances[$name] = $instance;
-	}
+    
+    public function getComponent($className){
+        return $this->_components[$className];
+    }
+    
+    public function getInstance($className){
+        return $this->_components[$className]->getInstance();
+    }
 }
 
-class CircularDependencyException extends Exception { /* ... */ }
-class ClassResolutionException extends Exception { /* ... */ }
-class IncorrectImplementationException extends Exception { /* ... */ }
+abstract class ComponentAbstract {
+    
+    private $_container;
+    private $_className;
+    
+    abstract public function addConstructor($val);   
+    abstract public function addSharedConstructor($componentName);   
+    abstract public function getInstance();   
+}
 
-?>
+class NamedComponent extends ComponentAbstract {
+    
+    private $_constructors = array();
+    
+    public function __construct($container, $className){
+        $this->_container = $container;
+        $this->_className = $className;
+    }
+    
+    public function addConstructor($val){
+        $this->_constructors[] = $val;
+        return $this;
+    }
+    
+    public function addSharedConstructor($className){
+        $this->_constructors[] = $this->_container->getComponent($className)->getInstance();
+        return $this;
+    }      
+    
+    public function getInstance(){		
+		$class = new ReflectionClass($this->_className);
+		return  $class->newInstanceArgs($this->_constructors);
+    }
+}
