@@ -12,15 +12,15 @@
 class Container {
 	private $_components = array();
 	
-	public function addComponent($className) {
-		$this->_components[$className] = new NamedComponent($this, $className);
+    public function addComponent($className) {
+        $this->_components[$className] = new NamedComponent($this, $className);
         return $this->_components[$className];
-	}
-    
+    }
+
     public function getComponent($className){
         return $this->_components[$className];
     }
-    
+
     public function getInstance($className){
         return $this->_components[$className]->getInstance();
     }
